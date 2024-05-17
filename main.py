@@ -209,7 +209,7 @@ def process_domestik_ekspor_df(uploaded_file):
 
 def main():
     st.set_page_config(page_title='ML Summary Liaison')
-    st.title('Data dari Excel 📊')
+    st.title('Summary Liaison 📊')
 
     uploaded_file_1 = st.file_uploader('Upload file Excel Pertama (XLSX) untuk triwulan sebelumnya', type='xlsx')
 
