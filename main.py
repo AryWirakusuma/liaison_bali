@@ -1,9 +1,6 @@
 import streamlit as st
 import pandas as pd
-
-# paling baru
-
-
+# paling baru tanpa llm
 # Database untuk memetakan nama perusahaan ke sektor atau jenis usaha (LU)
 company_lu_mapping = {
     'Subak Uma Dalem': 'Pertanian, Kehutanan dan Perikanan',
@@ -207,6 +204,29 @@ def process_domestik_ekspor_df(uploaded_file):
 
     return combined_df_domestik_ekspor, total_count, domestic_count, export_count, domestic_export_count, lu_domestic, lu_export, lu_domestic_export
 
+def process_alasan_domestik_ekspor_df(uploaded_file):
+    alasan_domestik_ekspor_df = pd.DataFrame(columns=['Nama Contact', 'Permintaan Domestik', 'Permintaan Ekspor'])
+    sheets = pd.read_excel(uploaded_file, sheet_name=None, engine='openpyxl')
+
+    for sheet_name, df in sheets.items():
+        try:
+            # Ambil kolom Permintaan Domestik dan Permintaan Ekspor
+            permintaan_domestik = df[df['Unnamed: 2'] == 'Permintaan/Penjualan  - Permintaan Domestik']['Unnamed: 3'].values[0]
+            permintaan_ekspor = df[df['Unnamed: 2'] == 'Permintaan/Penjualan - Permintaan Ekspor']['Unnamed: 3'].values[0]
+
+            # Tambahkan data ke dalam dataframe alasan_domestik_ekspor_df
+            alasan_domestik_ekspor_df = pd.concat([alasan_domestik_ekspor_df, pd.DataFrame({
+                'Nama Contact': [sheet_name],
+                'Permintaan Domestik': [permintaan_domestik],
+                'Permintaan Ekspor': [permintaan_ekspor]
+            })], ignore_index=True)
+        except (KeyError, IndexError):
+            st.error(f"Data Permintaan Domestik atau Ekspor tidak ditemukan dalam sheet {sheet_name}")
+
+    st.header('Dataframe Alasan Domestik dan Ekspor:')
+    st.dataframe(alasan_domestik_ekspor_df)
+    return alasan_domestik_ekspor_df
+
 def main():
     st.set_page_config(page_title='ML Summary Liaison')
     st.title('Summary Liaison 📊')
@@ -217,7 +237,7 @@ def main():
         st.markdown('---')
         combined_df_1, avg_values_1 = process_excel_file(uploaded_file_1)
 
-        st.write("\n---\n")
+        st.write("\\n---\\n")
         st.write("Upload file Excel Kedua (XLSX) untuk triwulan sekarang")
         uploaded_file_2 = st.file_uploader('Upload file Excel Kedua (XLSX)', type='xlsx')
 
@@ -229,6 +249,9 @@ def main():
             st.header('Dataframe Permintaan Domestik dan Ekspor:')
             combined_df_domestik_ekspor, total_count, domestic_count, export_count, domestic_export_count, lu_domestic, lu_export, lu_domestic_export = process_domestik_ekspor_df(uploaded_file_2)
             st.dataframe(combined_df_domestik_ekspor)
+
+            st.header('')
+            alasan_domestik_ekspor_df = process_alasan_domestik_ekspor_df(uploaded_file_2)
 
             st.header('Perbandingan Rata-rata nilai antara dua upload:')
             if combined_df_1.empty or combined_df_2.empty:
@@ -252,8 +275,7 @@ def main():
                 # Generate comparison sentence
                 quarter_now = st.text_input("Triwulan Sekarang (e.g., I 2024, II 2023, III 2022, IV 2024):")
                 quarter_before = st.text_input("Triwulan Sebelumnya (e.g., I 2024, II 2023, III 2022, IV 2024):")
-                phenomenon_reason = st.text_input(
-                    "Alasan Fenomena yang terjadi (e.g., dinamika pasar, kondisi politik, dll):")
+                phenomenon_reason = st.text_input("Alasan Fenomena yang terjadi (e.g., dinamika pasar, kondisi politik, dll):")
 
                 if quarter_now and quarter_before and phenomenon_reason:
                     if changes['naik'] > changes['turun']:
@@ -263,11 +285,9 @@ def main():
                     else:
                         trend = "tidak ada perubahan"
 
-                    turun_indicators = [col.replace(' - Likert Scale', ' ') for col in avg_values_1.keys() if
-                                        (col in avg_values_2.keys()) and (avg_values_2[col] - avg_values_1[col] < 0)]
+                    turun_indicators = [col.replace(' - Likert Scale', ' ') for col in avg_values_1.keys() if (col in avg_values_2.keys()) and (avg_values_2[col] - avg_values_1[col] < 0)]
                     st.header('Kesimpulan pertama:')
-                    st.write(
-                        f"Kinerja perekonomian Provinsi pada triwulan {quarter_now} terindikasi tumbuh melambat dibandingkan triwulan {quarter_before}. Hal ini sebagaimana tercermin dari hasil likert pada triwulan {quarter_now} yang mengalami {trend} pada {changes['turun']} dari {len(avg_values_1)} indikator likert liaison, yaitu {', '.join(turun_indicators)}. Fenomena ini terjadi karena {phenomenon_reason}.")
+                    st.write(f"Kinerja perekonomian Provinsi pada triwulan {quarter_now} terindikasi tumbuh melambat dibandingkan triwulan {quarter_before}. Hal ini sebagaimana tercermin dari hasil likert pada triwulan {quarter_now} yang mengalami {trend} pada {changes['turun']} dari {len(avg_values_1)} indikator likert liaison, yaitu {', '.join(turun_indicators)}. Fenomena ini terjadi karena {phenomenon_reason}.")
 
                     # Calculate total number of contacts
                     total_contacts = combined_df_domestik_ekspor['Nama Contact'].nunique()
@@ -283,8 +303,7 @@ def main():
 
                     # Generate second conclusion
                     st.header('Kesimpulan Kedua:')
-                    st.write(
-                        f"Jumlah total perusahaan yang di liaison KPw Bank Indonesia Provinsi Bali periode triwulan {quarter_now} adalah {total_contacts} kontak. Liaison pada triwulan laporan didominasi oleh LU {max_dominant_lu} sebesar {max_dominant_lu_percentage:.2f}% dari total kontak. Kemudian, {domestic_percentage:.2f}% berorientasi domestik, {export_percentage:.2f}% berorientasi ekspor dan {domestic_export_percentage:.2f}% berorientasi domestik dan ekspor. Perusahaan yang sepenuhnya berorientasi domestik adalah LU {', '.join(lu_domestic)}. Kontak yang sepenuhnya berorientasi domestik dan ekspor adalah LU {', '.join(lu_domestic_export)}. Sedangkan, kontak yang sepenuhnya berorientasi ekspor adalah beberapa kontak pada LU {', '.join(lu_export)}.")
+                    st.write(f"Jumlah total perusahaan yang di liaison KPw Bank Indonesia Provinsi Bali periode triwulan {quarter_now} adalah {total_contacts} kontak. Liaison pada triwulan laporan didominasi oleh LU {max_dominant_lu} sebesar {max_dominant_lu_percentage:.2f}% dari total kontak. Kemudian, {domestic_percentage:.2f}% berorientasi domestik, {export_percentage:.2f}% berorientasi ekspor dan {domestic_export_percentage:.2f}% berorientasi domestik dan ekspor. Perusahaan yang sepenuhnya berorientasi domestik adalah LU {', '.join(lu_domestic)}. Kontak yang sepenuhnya berorientasi domestik dan ekspor adalah LU {', '.join(lu_domestic_export)}. Sedangkan, kontak yang sepenuhnya berorientasi ekspor adalah beberapa kontak pada LU {', '.join(lu_export)}.")
 
 if __name__ == "__main__":
     main()
